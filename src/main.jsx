@@ -1,3 +1,98 @@
-import React,{useEffect,useMemo,useState} from 'react';import{createRoot}from'react-dom/client';import'./styles.css';
-const seed=[{id:1,title:'The Extended Mind',authors:'Clark, A. & Chalmers, D.',year:1998,venue:'Analysis',tags:['具身认知','经典'],abstract:'本文提出心智延展论：当外部环境稳定地承担认知功能时，心智边界可以超越头脑与身体。',status:'阅读中',cite:'Clark, A. & Chalmers, D. (1998). The Extended Mind. Analysis.'},{id:2,title:'Situated Learning',authors:'Lave, J. & Wenger, E.',year:1991,venue:'Cambridge University Press',tags:['学习科学','社会'],abstract:'学习发生在真实情境的参与过程中，知识与共同体实践不可分割。',status:'待读',cite:'Lave, J. & Wenger, E. (1991). Situated Learning.'},{id:3,title:'Designing with Data',authors:'Miller, S.',year:2022,venue:'MIT Press',tags:['设计研究','方法'],abstract:'一套面向设计师的数据研究方法，讨论如何把定性洞察转化为可行动的设计决策。',status:'已读',cite:'Miller, S. (2022). Designing with Data.'}];const read=()=>{try{return JSON.parse(localStorage.getItem('research-library'))||seed}catch{return seed}};
-function App(){const[items,setItems]=useState(read);const[selected,setSelected]=useState(1);const[query,setQuery]=useState('');const[tag,setTag]=useState('全部');const[show,setShow]=useState(false);const[notice,setNotice]=useState('');const[form,setForm]=useState({title:'',authors:'',year:'2024',venue:'',abstract:'',tags:''});useEffect(()=>localStorage.setItem('research-library',JSON.stringify(items)),[items]);const tags=['全部',...new Set(items.flatMap(x=>x.tags))];const filtered=useMemo(()=>items.filter(x=>(tag==='全部'||x.tags.includes(tag))&&(`${x.title}${x.authors}${x.abstract}`.toLowerCase().includes(query.toLowerCase()))),[items,tag,query]);const cur=items.find(x=>x.id===selected)||items[0];const update=(k,v)=>setItems(items.map(x=>x.id===cur.id?{...x,[k]:v}:x));const add=()=>{if(!form.title)return;const p={...form,id:Date.now(),year:+form.year,tags:form.tags.split(',').map(x=>x.trim()).filter(Boolean),status:'待读',cite:`${form.authors} (${form.year}). ${form.title}. ${form.venue}.`};setItems([...items,p]);setSelected(p.id);setForm({title:'',authors:'',year:'2024',venue:'',abstract:'',tags:''});setShow(false);setNotice('文献已加入研究库')};const bib=()=>{navigator.clipboard?.writeText(cur.cite);setNotice('引用文本已复制')};const download=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([items.map(x=>x.cite).join('\n')],{type:'text/plain'}));a.download='references.txt';a.click();setNotice('引用列表已导出')};return <div className="app"><aside><div className="logo"><span>∴</span> LITERATURE</div><div className="library-head"><span>我的研究库</span><strong>{items.length}<small> 篇文献</small></strong></div><nav><button className="active">▤ <span>所有文献</span><b>{items.length}</b></button><button>▥ <span>待读</span><b>{items.filter(x=>x.status==='待读').length}</b></button><button>✓ <span>已读</span></button><button>☆ <span>收藏</span></button></nav><div className="side-tags"><small>标签</small>{tags.slice(1,5).map(t=><button onClick={()=>setTag(t)} key={t}># {t}</button>)}</div><div className="side-foot"><button>⚙ 偏好设置</button><small>本地数据库 · 已同步</small></div></aside><main><header><div><span className="crumb">RESEARCH / LIBRARY</span><h1>所有文献</h1></div><div className="actions"><button className="outline" onClick={download}>↓ 导出引用</button><button className="primary" onClick={()=>setShow(true)}>＋ 添加文献</button></div></header><div className="toolbar"><div className="search">⌕<input placeholder="搜索标题、作者或摘要…" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button onClick={()=>setQuery('')}>×</button>}</div><div className="tag-filter">{tags.map(t=><button className={tag===t?'on':''} onClick={()=>setTag(t)} key={t}>{t}</button>)}</div></div><div className="body"><section className="paper-list">{filtered.map(p=><button className={'paper '+(selected===p.id?'selected':'')} onClick={()=>setSelected(p.id)} key={p.id}><div className="paper-year">{p.year}</div><div className="paper-copy"><h3>{p.title}</h3><p>{p.authors}</p><div>{p.tags.map(t=><span key={t}>#{t}</span>)}</div></div><small className={'status '+p.status}>{p.status}</small></button>)}{!filtered.length&&<div className="no-result">没有找到匹配的文献</div>}</section><section className="detail">{cur&&<><div className="detail-top"><span className="status reading">{cur.status}</span><button onClick={()=>setNotice('已加入收藏')}>☆ 收藏</button></div><h2>{cur.title}</h2><p className="authors">{cur.authors}</p><div className="cite-actions"><button onClick={bib}>▣ 复制引用</button><button onClick={()=>update('status',cur.status==='已读'?'待读':'已读')}>{cur.status==='已读'?'标记为待读':'标记为已读'}</button></div><div className="detail-section"><h4>摘要 <span>ABSTRACT</span></h4><p>{cur.abstract}</p></div><div className="detail-section"><h4>出版信息 <span>PUBLICATION</span></h4><div className="pub-grid"><div><small>出版物</small><strong>{cur.venue}</strong></div><div><small>年份</small><strong>{cur.year}</strong></div></div></div><div className="detail-section"><h4>引用文本 <span>BIBTEX / TEXT</span></h4><div className="cite-box">{cur.cite}<button onClick={bib}>复制</button></div></div><div className="detail-section"><h4>我的笔记 <span>PRIVATE</span></h4><textarea className="notes" placeholder="记录你的阅读想法…" value={cur.notes||''} onChange={e=>update('notes',e.target.value)}/></div></>}</section></div></main>{show&&<div className="modal-bg"><div className="modal"><button className="close" onClick={()=>setShow(false)}>×</button><span className="crumb">NEW REFERENCE</span><h2>添加一篇文献</h2><label>标题<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="论文或书籍标题"/></label><label>作者<input value={form.authors} onChange={e=>setForm({...form,authors:e.target.value})}/></label><div className="two"><label>年份<input type="number" value={form.year} onChange={e=>setForm({...form,year:e.target.value})}/></label><label>出版物<input value={form.venue} onChange={e=>setForm({...form,venue:e.target.value})}/></label></div><label>关键词<input value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})} placeholder="用逗号分隔"/></label><label>摘要<textarea rows="3" value={form.abstract} onChange={e=>setForm({...form,abstract:e.target.value})}/></label><button className="primary full" onClick={add}>保存文献</button></div></div>}{notice&&<div className="toast">{notice}</div>}</div>};createRoot(document.getElementById('root')).render(<App/>);
+import React, { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import './styles.css';
+import { loadState, saveState, uid } from './data/storage.js';
+import LibraryView from './ui/LibraryView.jsx';
+import BatchHub from './ui/BatchHub.jsx';
+import BatchDetail from './ui/BatchDetail.jsx';
+
+function App() {
+  const [state, setState] = useState(loadState);
+  const [view, setView] = useState('library'); // library | hub | batch
+  const [openBatch, setOpenBatch] = useState(null);
+  const [toast, setToast] = useState('');
+  const [toastError, setToastError] = useState(false);
+
+  // 单一状态序列化为一致性的唯一来源：刷新后批次/冻结文本/修订链同生同存。
+  useEffect(() => saveState(state), [state]);
+
+  const notify = (msg, isErr = false) => {
+    setToast(msg); setToastError(isErr);
+    setTimeout(() => setToast(''), 3200);
+  };
+
+  const createBatch = (cfg) => {
+    const batch = {
+      id: uid('b'),
+      name: cfg.name.trim(),
+      style: cfg.style,
+      language: cfg.language,
+      missingStrategy: cfg.missingStrategy,
+      memberIds: cfg.memberIds,
+      frozen: false, frozenAt: null, frozenText: '', frozenManifest: null,
+      revisions: [],
+      createdAt: new Date().toISOString()
+    };
+    setState(s => ({ ...s, batches: [...s.batches, batch] }));
+    setOpenBatch(batch.id);
+    setView('batch');
+    notify('批次草稿已建立，可预览确认后冻结');
+  };
+
+  const openBatchById = (id) => { setOpenBatch(id); setView('batch'); };
+  const batch = state.batches.find(b => b.id === openBatch) || null;
+
+  const frozenCount = state.batches.filter(b => b.frozen).length;
+
+  return (
+    <div className="app">
+      <aside>
+        <div className="logo"><span>∴</span> LITERATURE</div>
+        <div className="library-head">
+          <span>研究文献库 · 引用导出台</span>
+          <strong>{state.records.length}<small> 篇文献</small></strong>
+        </div>
+        <nav>
+          <button className={view === 'library' ? 'active' : ''} onClick={() => setView('library')}>
+            ▤ <span>文献库</span><b>{state.records.length}</b>
+          </button>
+          <button className={view !== 'library' ? 'active' : ''} onClick={() => setView('hub')}>
+            ◱ <span>引用批次</span><b>{state.batches.length}</b>
+          </button>
+        </nav>
+        <div className="side-tags">
+          <small>批次状态</small>
+          <button onClick={() => setView('hub')}>草稿 {state.batches.length - frozenCount}</button>
+          <button onClick={() => setView('hub')}>已冻结 {frozenCount}</button>
+        </div>
+        <div className="side-foot">
+          <small>本地存储 · 数据/校验/导出/界面分层 · 无新增依赖</small>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <span className="crumb">
+              RESEARCH / {view === 'library' ? 'LIBRARY' : view === 'hub' ? 'CITATION BATCHES' : 'BATCH DETAIL'}
+            </span>
+            <h1>{view === 'library' ? '所有文献' : view === 'hub' ? '引用样式批次导出' : batch?.name || '批次'}</h1>
+          </div>
+        </header>
+        {view === 'library' && <LibraryView state={state} setState={setState} notify={notify} />}
+        {view === 'hub' && <BatchHub state={state} onCreate={createBatch} onOpen={openBatchById} />}
+        {view === 'batch' && batch && (
+          <BatchDetail batch={batch} state={state} setState={setState}
+            onBack={() => setView('hub')} notify={notify} />
+        )}
+        {view === 'batch' && !batch && (
+          <div className="hub"><div className="no-result">批次不存在。
+            <button className="link" onClick={() => setView('hub')}>返回列表</button></div></div>
+        )}
+      </main>
+      {toast && <div className={'toast ' + (toastError ? 'err' : '')}>{toast}</div>}
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')).render(<App />);
